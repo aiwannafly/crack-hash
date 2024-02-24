@@ -11,7 +11,7 @@ import ru.aiwannafly.entities.TaskRequest;
 import ru.aiwannafly.services.TaskService;
 
 @RestController
-public class TaskController {
+public class TaskController extends ValidCheckController {
     private final TaskService taskService;
 
     public TaskController(@Autowired TaskService taskService) {

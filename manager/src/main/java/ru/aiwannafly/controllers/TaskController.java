@@ -12,7 +12,7 @@ import ru.aiwannafly.entities.worker.TaskResponse;
 import ru.aiwannafly.services.CrackService;
 
 @RestController
-public class TaskController {
+public class TaskController extends ValidCheckController {
     private final CrackService crackService;
 
     public TaskController(@Autowired CrackService crackService) {
@@ -25,6 +25,6 @@ public class TaskController {
         boolean updated = crackService.update(taskResponse.getRequestId(), taskResponse.getAnswers());
 
         if (!updated)
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Not found the request.");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Not found request with the id.");
     }
 }

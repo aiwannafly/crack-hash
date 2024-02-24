@@ -47,7 +47,7 @@ public class SingleWorkerCrackService implements CrackService {
         String requestId = UUID.randomUUID().toString();
 
         TaskRequest taskRequest = new TaskRequest(
-                requestId, 1, 1, request.getHash(),
+                requestId, 1, 1, request.getHash(), // single worker
                 request.getMaxLength(), managerConfig.getAlphabet()
         );
 
@@ -69,22 +69,24 @@ public class SingleWorkerCrackService implements CrackService {
         if (info == null)
             return null;
 
-        if (info.isReady())
+        if (info.isReady()) {
+            if (CollectionUtils.isEmpty(info.getAnswers()))
+                return StatusResponse.error();
+
             return StatusResponse.ready(info.getAnswers());
+        }
 
         return StatusResponse.inProgress();
     }
 
     @Override
     public boolean update(@Nonnull String requestId, @Nonnull List<String> answers) {
-        log.info(String.format("Got an update request for id = %s", requestId));
+        log.info(String.format("Got answers: %s for request id = %s", answers, requestId));
 
         CrackInfo info = statusByRequestId.get(requestId);
 
         if (info == null)
             return false;
-
-        log.info(String.format("Received answers: %s.", answers));
 
         info.addAnswers(answers);
         return true;
