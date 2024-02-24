@@ -1,0 +1,5 @@
+worker:
+  manager-url: http://localhost:9000
+
+server:
+  port: 9091
