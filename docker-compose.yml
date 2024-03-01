@@ -1,0 +1,28 @@
+services:
+  manager:
+    image: 'crack-hash-manager:latest'
+    networks:
+      - crack
+    build:
+      context: manager
+    ports:
+      - "8090:8090"
+    container_name: manager
+
+  worker:
+    image: 'crack-hash-worker:latest'
+    networks:
+      - crack
+    build:
+      context: worker
+    ports:
+      - "8080:8080"
+    container_name: worker
+
+
+
+networks:
+  crack:
+    name: crack
+    driver: bridge
+

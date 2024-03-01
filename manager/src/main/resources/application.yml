@@ -1,7 +1,7 @@
 manager:
   alphabet: abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789
   worker-urls:
-    - http://localhost:9091
+    - http://worker:8080
 
 server:
-  port : 9000
+  port: 8090
