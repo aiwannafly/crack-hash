@@ -63,16 +63,20 @@ public class TaskService {
     }
 
     private void sentResponseToManager(@Nonnull TaskResponse response) {
-        String url = workerConfig.getManagerUrl() + "/internal/api/manager/hash/crack/request";
+        try {
+            String url = workerConfig.getManagerUrl() + "/internal/api/manager/hash/crack/request";
 
-        RestTemplate restTemplate = new RestTemplate();
+            RestTemplate restTemplate = new RestTemplate();
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
 
-        HttpEntity<TaskResponse> request = new HttpEntity<>(response, headers);
+            HttpEntity<TaskResponse> request = new HttpEntity<>(response, headers);
 
-        restTemplate.postForLocation(url, request);
+            restTemplate.postForLocation(url, request);
+        } catch (RuntimeException e) {
+            log.error("Failed to send response to manager.", e);
+        }
     }
 
     @Nonnull

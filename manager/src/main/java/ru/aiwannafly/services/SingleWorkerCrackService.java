@@ -96,15 +96,19 @@ public class SingleWorkerCrackService implements CrackService {
             @Nonnull String workerUrl,
             @Nonnull TaskRequest taskRequest
     ) {
-        RestTemplate restTemplate = new RestTemplate();
+        try {
+            RestTemplate restTemplate = new RestTemplate();
 
-        String url = workerUrl + "/internal/api/worker/hash/crack/task";
+            String url = workerUrl + "/internal/api/worker/hash/crack/task";
 
-        HttpHeaders httpHeaders = new HttpHeaders();
-        httpHeaders.setContentType(MediaType.APPLICATION_JSON);
+            HttpHeaders httpHeaders = new HttpHeaders();
+            httpHeaders.setContentType(MediaType.APPLICATION_JSON);
 
-        HttpEntity<TaskRequest> request = new HttpEntity<>(taskRequest, httpHeaders);
+            HttpEntity<TaskRequest> request = new HttpEntity<>(taskRequest, httpHeaders);
 
-        restTemplate.postForLocation(url, request);
+            restTemplate.postForLocation(url, request);
+        } catch (RuntimeException e) {
+            log.error("Failed to send task to worker.", e);
+        }
     }
 }
