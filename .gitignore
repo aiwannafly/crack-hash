@@ -11,6 +11,8 @@ target/
 
 */*.jar
 
+*.jar
+
 */.gitignore
 
 ### Text files
