@@ -7,13 +7,11 @@ import jakarta.validation.constraints.Positive;
 import java.util.List;
 import java.util.Objects;
 
-public class TaskResponse {
-    @NotBlank(message = "Request id must be non-empty")
-    private final String requestId;
-    @Positive(message = "Part number must be positive")
-    private final int partNumber;
-    private final List<String> answers;
-
+public record TaskResponse(
+        @NotBlank(message = "Request id must be non-empty") String requestId,
+        @Positive(message = "Part number must be positive") int partNumber,
+        List<String> answers
+) {
     public TaskResponse(
             @Nonnull String requestId,
             int partNumber,
@@ -27,17 +25,20 @@ public class TaskResponse {
         this.answers = answers;
     }
 
+    @Override
     @Nonnull
-    public String getRequestId() {
+    public String requestId() {
         return requestId;
     }
 
-    public int getPartNumber() {
+    @Override
+    public int partNumber() {
         return partNumber;
     }
 
+    @Override
     @Nonnull
-    public List<String> getAnswers() {
+    public List<String> answers() {
         return answers;
     }
 }

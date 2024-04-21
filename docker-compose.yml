@@ -1,25 +1,91 @@
 services:
   manager:
-    image: 'crack-hash-manager:latest'
-    networks:
-      - crack
+    image: crack-hash-manager:latest
     build:
       context: manager
     ports:
-      - "8090:8090"
+      - 8090:8090
     container_name: manager
-
-  worker:
-    image: 'crack-hash-worker:latest'
     networks:
       - crack
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  worker:
+    image: crack-hash-worker:latest
     build:
       context: worker
     ports:
-      - "8080:8080"
+      - 8080:8080
     container_name: worker
+    networks:
+      - crack
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
 
+  rabbitmq:
+    image: rabbitmq:3-management
+    environment:
+      RABBITMQ_DEFAULT_USER: user
+      RABBITMQ_DEFAULT_PASS: password
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 30s
+      timeout: 30s
+      retries: 3
+    ports:
+      - 5672:5672
+      - 15672:15672
+    networks:
+      - crack
 
+  mongodb-primary:
+    image: mongo:latest
+    command: ["--replSet", "rs0", "--bind_ip_all", "--port", "27017"]
+    healthcheck:
+      test: echo "try { rs.status() } catch (err) { rs.initiate({_id:'rs0',members:[{_id:0,host:'mongodb-primary:27017',priority:1},{_id:1,host:'mongodb-replic1:27018',priority:0.5},{_id:2,host:'mongodb-replic2:27019',priority:0.5}]}) }" | mongosh --port 27017 --quiet
+      interval: 5s
+      timeout: 20s
+      retries: 20
+    ports:
+      - 27017:27017
+    volumes:
+      - mongodb1_data:/data/db
+      - mongodb1_config:/data/configdb
+    networks:
+      - crack
+
+  mongodb-replic1:
+    image: mongo:latest
+    command: ["--replSet", "rs0", "--bind_ip_all", "--port", "27018"]
+    ports:
+      - 27018:27018
+    volumes:
+      - mongodb2_data:/data/db
+      - mongodb2_config:/data/configdb
+    networks:
+      - crack
+
+  mongodb-replic2:
+    image: mongo:latest
+    command: [ "--replSet", "rs0", "--bind_ip_all", "--port", "27019" ]
+    ports:
+      - 27019:27019
+    volumes:
+      - mongodb3_data:/data/db
+      - mongodb3_config:/data/configdb
+    networks:
+      - crack
+
+volumes:
+  mongodb1_data:
+  mongodb1_config:
+  mongodb2_data:
+  mongodb2_config:
+  mongodb3_data:
+  mongodb3_config:
 
 networks:
   crack:

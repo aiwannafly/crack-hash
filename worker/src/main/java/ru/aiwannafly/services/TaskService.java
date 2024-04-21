@@ -3,13 +3,10 @@ package ru.aiwannafly.services;
 import jakarta.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.amqp.core.AmqpTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
-import org.springframework.web.client.RestTemplate;
 import ru.aiwannafly.WorkerConfig;
 import ru.aiwannafly.entities.TaskRequest;
 import ru.aiwannafly.entities.TaskResponse;
@@ -21,14 +18,19 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import static ru.aiwannafly.RabbitConfig.COMPLETED_KEY;
+import static ru.aiwannafly.RabbitConfig.TASKS_EXCHANGE;
+
 @Service
 public class TaskService {
     private final ExecutorService executorService = Executors.newFixedThreadPool(1);
     private static final Logger log = LoggerFactory.getLogger(TaskService.class);
     private final WorkerConfig workerConfig;
+    private final AmqpTemplate rabbitTemplate;
 
-    public TaskService(@Autowired WorkerConfig workerConfig) {
+    public TaskService(@Autowired WorkerConfig workerConfig, @Autowired AmqpTemplate rabbitTemplate) {
         this.workerConfig = workerConfig;
+        this.rabbitTemplate = rabbitTemplate;
 
         if (workerConfig.getManagerUrl() == null) {
             log.error("Worker config does not contain manager url.");
@@ -64,16 +66,7 @@ public class TaskService {
 
     private void sentResponseToManager(@Nonnull TaskResponse response) {
         try {
-            String url = workerConfig.getManagerUrl() + "/internal/api/manager/hash/crack/request";
-
-            RestTemplate restTemplate = new RestTemplate();
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-
-            HttpEntity<TaskResponse> request = new HttpEntity<>(response, headers);
-
-            restTemplate.postForLocation(url, request);
+            rabbitTemplate.convertAndSend(TASKS_EXCHANGE, COMPLETED_KEY, response);
         } catch (RuntimeException e) {
             log.error("Failed to send response to manager.", e);
         }

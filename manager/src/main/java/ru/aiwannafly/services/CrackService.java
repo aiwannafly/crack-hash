@@ -13,5 +13,5 @@ public interface CrackService {
 
     StatusResponse status(@Nonnull String requestId);
 
-    boolean update(@Nonnull String requestId, @Nonnull List<String> answers);
+    boolean update(@Nonnull String requestId, int partHumber, @Nonnull List<String> answers);
 }

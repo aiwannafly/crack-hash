@@ -1,7 +1,17 @@
 manager:
   alphabet: abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789
-  worker-urls:
-    - http://worker:8080
 
 server:
   port: 8090
+
+spring:
+  data:
+    mongodb:
+      host: mongodb-primary
+      port: 27017
+
+  rabbitmq:
+    username: user
+    password: password
+    host: rabbitmq
+    port: 5672

@@ -3,37 +3,38 @@ package ru.aiwannafly.services;
 import jakarta.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.amqp.core.AmqpTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
-import org.springframework.web.client.RestTemplate;
 import ru.aiwannafly.ManagerConfig;
 import ru.aiwannafly.entities.CrackRequest;
 import ru.aiwannafly.entities.CrackResponse;
 import ru.aiwannafly.entities.StatusResponse;
 import ru.aiwannafly.entities.worker.TaskRequest;
+import ru.aiwannafly.repository.CrackInfoRepository;
 
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
+
+import static ru.aiwannafly.RabbitConfig.TASKS_EXCHANGE;
+import static ru.aiwannafly.RabbitConfig.TODO_KEY;
 
 @Service
-public class SingleWorkerCrackService implements CrackService {
-    private static final Logger log = LoggerFactory.getLogger(SingleWorkerCrackService.class);
+public class MultiNodeCrackService implements CrackService {
+    private static final Logger log = LoggerFactory.getLogger(MultiNodeCrackService.class);
     private final ManagerConfig managerConfig;
-    private final Map<String, CrackInfo> statusByRequestId = new ConcurrentHashMap<>();
+    private final CrackInfoRepository crackInfoRepository;
+    private final AmqpTemplate rabbitTemplate;
 
-    public SingleWorkerCrackService(@Autowired ManagerConfig managerConfig) {
+    public MultiNodeCrackService(
+            @Autowired ManagerConfig managerConfig,
+            @Autowired CrackInfoRepository crackInfoRepository,
+            @Autowired AmqpTemplate rabbitTemplate
+    ) {
         this.managerConfig = managerConfig;
-
-        if (CollectionUtils.isEmpty(managerConfig.getWorkerUrls())) {
-            log.error("Manager config does not contain any worker url.");
-            throw new RuntimeException("Internal error.");
-        }
+        this.crackInfoRepository = crackInfoRepository;
+        this.rabbitTemplate = rabbitTemplate;
 
         if (managerConfig.getAlphabet() == null) {
             log.error("Manager config does not contain alphabet.");
@@ -43,7 +44,7 @@ public class SingleWorkerCrackService implements CrackService {
 
     @Nonnull
     @Override
-    public CrackResponse crack(@Nonnull CrackRequest request) {
+    public synchronized CrackResponse crack(@Nonnull CrackRequest request) {
         String requestId = UUID.randomUUID().toString();
 
         TaskRequest taskRequest = new TaskRequest(
@@ -51,20 +52,19 @@ public class SingleWorkerCrackService implements CrackService {
                 request.getMaxLength(), managerConfig.getAlphabet()
         );
 
-        sendTaskToWorker(managerConfig.getWorkerUrls().get(0),taskRequest);
-
         log.info(String.format("Sent task with request id = %s to worker.", requestId));
 
-        // call workers
-        CrackInfo info = new CrackInfo(1); // single worker
-        statusByRequestId.put(requestId, info);
+        // save request
+        crackInfoRepository.save(new CrackInfo(requestId, 1));
+
+        sendTaskToWorker(taskRequest);
 
         return new CrackResponse(requestId);
     }
 
     @Override
-    public StatusResponse status(@Nonnull String requestId) {
-        CrackInfo info = statusByRequestId.get(requestId);
+    public synchronized StatusResponse status(@Nonnull String requestId) {
+        CrackInfo info = crackInfoRepository.findById(requestId).orElse(null);
 
         if (info == null)
             return null;
@@ -80,33 +80,22 @@ public class SingleWorkerCrackService implements CrackService {
     }
 
     @Override
-    public boolean update(@Nonnull String requestId, @Nonnull List<String> answers) {
+    public synchronized boolean update(@Nonnull String requestId, int partHumber, @Nonnull List<String> answers) {
         log.info(String.format("Got answers: %s for request id = %s", answers, requestId));
 
-        CrackInfo info = statusByRequestId.get(requestId);
+        CrackInfo info = crackInfoRepository.findById(requestId).orElse(null);
 
         if (info == null)
             return false;
 
-        info.addAnswers(answers);
+        info.addAnswers(partHumber, answers);
+        crackInfoRepository.save(info);
         return true;
     }
 
-    private void sendTaskToWorker(
-            @Nonnull String workerUrl,
-            @Nonnull TaskRequest taskRequest
-    ) {
+    private synchronized void sendTaskToWorker(@Nonnull TaskRequest taskRequest) {
         try {
-            RestTemplate restTemplate = new RestTemplate();
-
-            String url = workerUrl + "/internal/api/worker/hash/crack/task";
-
-            HttpHeaders httpHeaders = new HttpHeaders();
-            httpHeaders.setContentType(MediaType.APPLICATION_JSON);
-
-            HttpEntity<TaskRequest> request = new HttpEntity<>(taskRequest, httpHeaders);
-
-            restTemplate.postForLocation(url, request);
+            rabbitTemplate.convertAndSend(TASKS_EXCHANGE, TODO_KEY, taskRequest);
         } catch (RuntimeException e) {
             log.error("Failed to send task to worker.", e);
         }
