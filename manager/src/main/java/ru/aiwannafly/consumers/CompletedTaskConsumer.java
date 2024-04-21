@@ -25,8 +25,6 @@ public class CompletedTaskConsumer {
 
     @RabbitListener(queues = COMPLETED_TASKS_QUERY)
     public void processCompletedTask(TaskResponse taskResponse) {
-        log.info("Received from completed-tasks the id: " + taskResponse.requestId());
-
         try {
             boolean updated = crackService.update(
                     taskResponse.requestId(),

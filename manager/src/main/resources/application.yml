@@ -1,5 +1,6 @@
 manager:
   alphabet: abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789
+  workers-count: 4
 
 server:
   port: 8090

@@ -74,8 +74,6 @@ public class TaskService {
 
     @Nonnull
     private List<String> findMatches(@Nonnull List<byte[]> symbolAlphabets, @Nonnull String desiredHash) {
-        log.info(String.format("Brutforcing hash: %s with max length %d.", desiredHash, symbolAlphabets.size()));
-
         List<String> matches = new LinkedList<>();
 
         for (int seqLength = 1; seqLength <= symbolAlphabets.size(); seqLength++) {

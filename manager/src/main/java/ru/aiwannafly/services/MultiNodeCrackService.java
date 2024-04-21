@@ -40,6 +40,11 @@ public class MultiNodeCrackService implements CrackService {
             log.error("Manager config does not contain alphabet.");
             throw new RuntimeException("Internal error.");
         }
+
+        if (managerConfig.getWorkersCount() < 1) {
+            log.error("Workers count must not be less then 1");
+            throw new RuntimeException("Internal error.");
+        }
     }
 
     @Nonnull
@@ -47,17 +52,21 @@ public class MultiNodeCrackService implements CrackService {
     public synchronized CrackResponse crack(@Nonnull CrackRequest request) {
         String requestId = UUID.randomUUID().toString();
 
-        TaskRequest taskRequest = new TaskRequest(
-                requestId, 1, 1, request.getHash(), // single worker
-                request.getMaxLength(), managerConfig.getAlphabet()
-        );
-
-        log.info(String.format("Sent task with request id = %s to worker.", requestId));
+        int partCount = managerConfig.getWorkersCount();
 
         // save request
-        crackInfoRepository.save(new CrackInfo(requestId, 1));
+        crackInfoRepository.save(new CrackInfo(requestId, partCount));
 
-        sendTaskToWorker(taskRequest);
+        for (int partNumber = 1; partNumber <= partCount; partNumber++) {
+            TaskRequest taskRequest = new TaskRequest(
+                    requestId, partNumber, partCount, request.getHash(), // single worker
+                    request.getMaxLength(), managerConfig.getAlphabet()
+            );
+
+            log.info(String.format("Sent task with request id = %s to worker.", requestId));
+
+            sendTaskToWorker(taskRequest);
+        }
 
         return new CrackResponse(requestId);
     }

@@ -9,6 +9,7 @@ import org.springframework.context.annotation.Configuration;
 @ConfigurationProperties(prefix = "manager")
 public class ManagerConfig {
     private String alphabet;
+    private int workersCount;
 
     public String getAlphabet() {
         return alphabet;
@@ -16,5 +17,13 @@ public class ManagerConfig {
 
     public void setAlphabet(String alphabet) {
         this.alphabet = alphabet;
+    }
+
+    public int getWorkersCount() {
+        return workersCount;
+    }
+
+    public void setWorkersCount(int workersCount) {
+        this.workersCount = workersCount;
     }
 }

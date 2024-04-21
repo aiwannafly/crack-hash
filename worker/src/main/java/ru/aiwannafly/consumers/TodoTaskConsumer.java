@@ -24,8 +24,6 @@ public class TodoTaskConsumer {
 
     @RabbitListener(queues = TODO_TASKS_QUERY)
     public void processTodoTask(TaskRequest taskRequest) {
-        log.info(String.format("Got todo task with id: '%s'", taskRequest.getRequestId()));
-
         try {
             taskService.executeTask(taskRequest);
         } catch (Exception e) {

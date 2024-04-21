@@ -9,10 +9,32 @@ services:
       rabbitmq:
         condition: service_healthy
 
-  worker:
+  worker1:
     image: crack-hash-worker:latest
-    ports:
-      - 8080:8080
+    networks:
+      - crack
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  worker2:
+    image: crack-hash-worker:latest
+    networks:
+      - crack
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  worker3:
+    image: crack-hash-worker:latest
+    networks:
+      - crack
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+        
+  worker4:
+    image: crack-hash-worker:latest
     networks:
       - crack
     depends_on:
@@ -80,6 +102,8 @@ volumes:
   mongodb2_config:
   mongodb3_data:
   mongodb3_config:
+  worker1:
+  worker2:
 
 networks:
   crack:
