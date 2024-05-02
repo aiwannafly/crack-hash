@@ -8,8 +8,7 @@ server:
 spring:
   data:
     mongodb:
-      host: mongodb-primary
-      port: 27017
+      uri: mongodb://mongodb-primary:27017,mongodb-replic1:27018,mongodb-replic2:27019/crack-hash?authSource=admin&replicaSet=rs0
 
   rabbitmq:
     username: user
