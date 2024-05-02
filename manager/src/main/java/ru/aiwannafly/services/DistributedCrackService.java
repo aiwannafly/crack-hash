@@ -13,6 +13,7 @@ import ru.aiwannafly.entities.CrackResponse;
 import ru.aiwannafly.entities.StatusResponse;
 import ru.aiwannafly.entities.worker.TaskRequest;
 import ru.aiwannafly.repository.CrackInfoRepository;
+import ru.aiwannafly.repository.TaskRequestRepository;
 
 import java.util.List;
 import java.util.UUID;
@@ -21,19 +22,22 @@ import static ru.aiwannafly.RabbitConfig.TASKS_EXCHANGE;
 import static ru.aiwannafly.RabbitConfig.TODO_KEY;
 
 @Service
-public class MultiNodeCrackService implements CrackService {
-    private static final Logger log = LoggerFactory.getLogger(MultiNodeCrackService.class);
+public class DistributedCrackService implements CrackService {
+    private static final Logger log = LoggerFactory.getLogger(DistributedCrackService.class);
     private final ManagerConfig managerConfig;
     private final CrackInfoRepository crackInfoRepository;
+    private final TaskRequestRepository taskRequestRepository;
     private final AmqpTemplate rabbitTemplate;
 
-    public MultiNodeCrackService(
+    public DistributedCrackService(
             @Autowired ManagerConfig managerConfig,
             @Autowired CrackInfoRepository crackInfoRepository,
+            @Autowired TaskRequestRepository taskRequestRepository,
             @Autowired AmqpTemplate rabbitTemplate
     ) {
         this.managerConfig = managerConfig;
         this.crackInfoRepository = crackInfoRepository;
+        this.taskRequestRepository = taskRequestRepository;
         this.rabbitTemplate = rabbitTemplate;
 
         if (managerConfig.getAlphabet() == null) {
@@ -52,6 +56,8 @@ public class MultiNodeCrackService implements CrackService {
     public synchronized CrackResponse crack(@Nonnull CrackRequest request) {
         String requestId = UUID.randomUUID().toString();
 
+        checkStoredTasks();
+
         int partCount = managerConfig.getWorkersCount();
 
         // save request
@@ -59,21 +65,48 @@ public class MultiNodeCrackService implements CrackService {
 
         for (int partNumber = 1; partNumber <= partCount; partNumber++) {
             TaskRequest taskRequest = new TaskRequest(
-                    requestId, partNumber, partCount, request.getHash(), // single worker
-                    request.getMaxLength(), managerConfig.getAlphabet()
+                    requestId,
+                    partNumber,
+                    partCount,
+                    request.getHash(),
+                    request.getMaxLength(),
+                    managerConfig.getAlphabet()
             );
 
-            log.info(String.format("Sent task with request id = %s to worker.", requestId));
+            try {
+                sendTaskToWorker(taskRequest);
+            } catch (RuntimeException e) {
+                log.error("Failed to send task to worker.", e);
 
-            sendTaskToWorker(taskRequest);
+                taskRequestRepository.save(taskRequest);
+            }
+
+            log.info(String.format("Sent task with request id = %s to worker.", requestId));
         }
 
         return new CrackResponse(requestId);
     }
 
+    private synchronized void checkStoredTasks() {
+        List<TaskRequest> taskRequests = taskRequestRepository.findAll();
+
+        for (TaskRequest taskRequest : taskRequests) {
+            try {
+                sendTaskToWorker(taskRequest);
+            } catch (RuntimeException e) {
+                log.error("Failed to send task to worker.", e);
+                continue;
+            }
+
+            taskRequestRepository.delete(taskRequest);
+        }
+    }
+
     @Override
     public synchronized StatusResponse status(@Nonnull String requestId) {
         CrackInfo info = crackInfoRepository.findById(requestId).orElse(null);
+
+        checkStoredTasks();
 
         if (info == null)
             return null;
@@ -103,10 +136,6 @@ public class MultiNodeCrackService implements CrackService {
     }
 
     private synchronized void sendTaskToWorker(@Nonnull TaskRequest taskRequest) {
-        try {
-            rabbitTemplate.convertAndSend(TASKS_EXCHANGE, TODO_KEY, taskRequest);
-        } catch (RuntimeException e) {
-            log.error("Failed to send task to worker.", e);
-        }
+        rabbitTemplate.convertAndSend(TASKS_EXCHANGE, TODO_KEY, taskRequest);
     }
 }

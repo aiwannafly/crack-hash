@@ -7,7 +7,6 @@ import org.springframework.amqp.core.AmqpTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
-import ru.aiwannafly.WorkerConfig;
 import ru.aiwannafly.entities.TaskRequest;
 import ru.aiwannafly.entities.TaskResponse;
 
@@ -25,18 +24,10 @@ import static ru.aiwannafly.RabbitConfig.TASKS_EXCHANGE;
 public class TaskService {
     private final ExecutorService executorService = Executors.newFixedThreadPool(1);
     private static final Logger log = LoggerFactory.getLogger(TaskService.class);
-    private final WorkerConfig workerConfig;
     private final AmqpTemplate rabbitTemplate;
 
-    public TaskService(@Autowired WorkerConfig workerConfig, @Autowired AmqpTemplate rabbitTemplate) {
-        this.workerConfig = workerConfig;
+    public TaskService(@Autowired AmqpTemplate rabbitTemplate) {
         this.rabbitTemplate = rabbitTemplate;
-
-        if (workerConfig.getManagerUrl() == null) {
-            log.error("Worker config does not contain manager url.");
-
-            throw new RuntimeException("Internal error.");
-        }
     }
 
     public void executeTask(@Nonnull TaskRequest request) {

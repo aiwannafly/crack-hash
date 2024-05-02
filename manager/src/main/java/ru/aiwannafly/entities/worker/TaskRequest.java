@@ -5,10 +5,13 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
+import org.springframework.data.annotation.Id;
 
 import java.util.Objects;
 
 public class TaskRequest {
+    @Id
+    private String taskId;
     @NotBlank(message = "Request id must be non-empty")
     private final String requestId;
     @Positive(message = "Part number must be positive")
@@ -36,6 +39,7 @@ public class TaskRequest {
         Objects.requireNonNull(hash);
         Objects.requireNonNull(alphabet);
 
+        this.taskId = requestId + partNumber;
         this.requestId = requestId;
         this.partNumber = partNumber;
         this.partCount = partCount;
@@ -69,5 +73,14 @@ public class TaskRequest {
     @Nonnull
     public String getAlphabet() {
         return alphabet;
+    }
+
+    public void setTaskId(String taskId) {
+        this.taskId = taskId;
+    }
+
+    @Nonnull
+    public String getTaskId() {
+        return taskId;
     }
 }

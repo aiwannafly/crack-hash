@@ -43,7 +43,7 @@ public class RabbitConfig {
     }
 
     @Bean
-    public DirectExchange exchange() {
+    public DirectExchange tasksExchange() {
         return new DirectExchange(TASKS_EXCHANGE, true, false);
     }
 
@@ -55,7 +55,7 @@ public class RabbitConfig {
     }
 
     @Bean
-    public Binding todoTasksBinding(@Qualifier("todoTasks") Queue managerQueue, DirectExchange exchange) {
+    public Binding newTasksBinding(@Qualifier("todoTasks") Queue managerQueue, DirectExchange exchange) {
         return BindingBuilder
                 .bind(managerQueue).to(exchange)
                 .with(TODO_KEY);

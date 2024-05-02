@@ -1,6 +1,3 @@
-worker:
-  manager-url: http://manager:8090
-
 spring:
   rabbitmq:
     username: user
