@@ -81,8 +81,6 @@ services:
       - mongo2_data:/data/db
     networks:
       - crack
-    logging:
-      driver: none
 
   mongo-replic2:
     image: mongo:latest
