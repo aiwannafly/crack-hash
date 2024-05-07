@@ -57,56 +57,47 @@ services:
     networks:
       - crack
 
-  mongodb-primary:
+  mongo-primary:
     image: mongo:latest
-    command: ["--replSet", "rs0", "--bind_ip_all", "--port", "27017", "--quiet", "--logpath", "/dev/null"]
+    command: ["--replSet", "crack-hash", "--bind_ip_all", "--port", "27017", "--quiet", "--logpath", "/dev/null"]
     healthcheck:
-      test: echo "try { rs.status() } catch (err) { rs.initiate({_id:'rs0',members:[{_id:0,host:'mongodb-primary:27017',priority:1},{_id:1,host:'mongodb-replic1:27018',priority:0.5},{_id:2,host:'mongodb-replic2:27019',priority:0.5}]}) }" | mongosh --port 27017 --quiet
+      test: echo "try { rs.status() } catch (err) { rs.initiate({_id:'crack-hash',members:[{_id:0,host:'mongo-primary:27017',priority:1},{_id:1,host:'mongo-replic1:27018',priority:0.5},{_id:2,host:'mongo-replic2:27019',priority:0.5}]}) }" | mongosh --port 27017 --quiet
       interval: 5s
       timeout: 20s
       retries: 20
     ports:
       - 27017:27017
     volumes:
-      - mongodb1_data:/data/db
+      - mongo1_data:/data/db
     networks:
       - crack
-    logging:
-      driver: none
 
-  mongodb-replic1:
+  mongo-replic1:
     image: mongo:latest
-    command: ["--replSet", "rs0", "--bind_ip_all", "--port", "27018", "--quiet", "--logpath", "/dev/null"]
+    command: ["--replSet", "crack-hash", "--bind_ip_all", "--port", "27018", "--quiet", "--logpath", "/dev/null"]
     ports:
       - 27018:27018
     volumes:
-      - mongodb2_data:/data/db
+      - mongo2_data:/data/db
     networks:
       - crack
     logging:
       driver: none
 
-  mongodb-replic2:
+  mongo-replic2:
     image: mongo:latest
-    command: ["--replSet", "rs0", "--bind_ip_all", "--port", "27019", "--quiet", "--logpath", "/dev/null"]
+    command: ["--replSet", "crack-hash", "--bind_ip_all", "--port", "27019", "--quiet", "--logpath", "/dev/null"]
     ports:
       - 27019:27019
     volumes:
-      - mongodb3_data:/data/db
+      - mongo3_data:/data/db
     networks:
       - crack
-    logging:
-      driver: none
 
 volumes:
-  mongodb1_data:
-  mongodb1_config:
-  mongodb2_data:
-  mongodb2_config:
-  mongodb3_data:
-  mongodb3_config:
-  worker1:
-  worker2:
+  mongo1_data:
+  mongo2_data:
+  mongo3_data:
 
 networks:
   crack:
