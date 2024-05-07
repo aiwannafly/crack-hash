@@ -14,14 +14,8 @@ import org.springframework.context.annotation.Configuration;
 public class RabbitConfig {
     public static final String TASKS_EXCHANGE = "tasks";
     public static final String COMPLETED_KEY = "completed";
-    public static final String TODO_KEY = "todo";
     public static final String COMPLETED_TASKS_QUERY = "completed-tasks";
     public static final String TODO_TASKS_QUERY = "todo-tasks";
-
-    @Bean
-    public MessageConverter messageConverter(ObjectMapper jsonMapper){
-        return new Jackson2JsonMessageConverter(jsonMapper);
-    }
 
     @Bean
     public RabbitTemplate rabbitTemplate(ConnectionFactory connectionFactory, MessageConverter messageConverter) {
@@ -30,6 +24,11 @@ public class RabbitConfig {
         template.containerAckMode(AcknowledgeMode.AUTO);
 
         return template;
+    }
+
+    @Bean
+    public MessageConverter messageConverter(ObjectMapper jsonMapper){
+        return new Jackson2JsonMessageConverter(jsonMapper);
     }
 
     @Bean
@@ -52,12 +51,5 @@ public class RabbitConfig {
         return BindingBuilder
                 .bind(workerQueue).to(exchange)
                 .with(COMPLETED_KEY);
-    }
-
-    @Bean
-    public Binding newTasksBinding(@Qualifier("todoTasks") Queue managerQueue, DirectExchange exchange) {
-        return BindingBuilder
-                .bind(managerQueue).to(exchange)
-                .with(TODO_KEY);
     }
 }

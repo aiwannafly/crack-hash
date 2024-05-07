@@ -5,6 +5,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.core.AmqpTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import ru.aiwannafly.ManagerConfig;
@@ -22,6 +24,7 @@ import static ru.aiwannafly.RabbitConfig.TASKS_EXCHANGE;
 import static ru.aiwannafly.RabbitConfig.TODO_KEY;
 
 @Service
+@EnableScheduling
 public class DistributedCrackService implements CrackService {
     private static final Logger log = LoggerFactory.getLogger(DistributedCrackService.class);
     private final ManagerConfig managerConfig;
@@ -45,7 +48,7 @@ public class DistributedCrackService implements CrackService {
             throw new RuntimeException("Internal error.");
         }
 
-        if (managerConfig.getWorkersCount() < 1) {
+        if (managerConfig.getPartCount() < 1) {
             log.error("Workers count must not be less then 1");
             throw new RuntimeException("Internal error.");
         }
@@ -56,9 +59,7 @@ public class DistributedCrackService implements CrackService {
     public synchronized CrackResponse crack(@Nonnull CrackRequest request) {
         String requestId = UUID.randomUUID().toString();
 
-        checkStoredTasks();
-
-        int partCount = managerConfig.getWorkersCount();
+        int partCount = managerConfig.getPartCount();
 
         // save request
         crackInfoRepository.save(new CrackInfo(requestId, partCount));
@@ -87,26 +88,9 @@ public class DistributedCrackService implements CrackService {
         return new CrackResponse(requestId);
     }
 
-    private synchronized void checkStoredTasks() {
-        List<TaskRequest> taskRequests = taskRequestRepository.findAll();
-
-        for (TaskRequest taskRequest : taskRequests) {
-            try {
-                sendTaskToWorker(taskRequest);
-            } catch (RuntimeException e) {
-                log.error("Failed to send task to worker.", e);
-                continue;
-            }
-
-            taskRequestRepository.delete(taskRequest);
-        }
-    }
-
     @Override
     public synchronized StatusResponse status(@Nonnull String requestId) {
         CrackInfo info = crackInfoRepository.findById(requestId).orElse(null);
-
-        checkStoredTasks();
 
         if (info == null)
             return null;
@@ -137,5 +121,26 @@ public class DistributedCrackService implements CrackService {
 
     private synchronized void sendTaskToWorker(@Nonnull TaskRequest taskRequest) {
         rabbitTemplate.convertAndSend(TASKS_EXCHANGE, TODO_KEY, taskRequest);
+    }
+
+    @Scheduled(fixedDelay = 5000, initialDelay = 10000)
+    private synchronized void checkStoredTasks() {
+        List<TaskRequest> taskRequests = taskRequestRepository.findAll();
+
+        if (taskRequests.isEmpty())
+            return;
+
+        log.info("Try to send stored tasks to workers...");
+
+        for (TaskRequest taskRequest : taskRequests) {
+            try {
+                sendTaskToWorker(taskRequest);
+            } catch (RuntimeException e) {
+                log.error("Failed to send task to worker.", e);
+                continue;
+            }
+
+            taskRequestRepository.delete(taskRequest);
+        }
     }
 }

@@ -1,17 +1,17 @@
 manager:
   alphabet: abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789
-  workers-count: 4
+  part-count: 4
 
 server:
   port: 8090
 
 spring:
-  data:
-    mongodb:
-      uri: mongodb://mongodb-primary:27017,mongodb-replic1:27018,mongodb-replic2:27019/crack-hash?authSource=admin&replicaSet=rs0
-
   rabbitmq:
     username: user
     password: password
     host: rabbitmq
     port: 5672
+
+  data:
+    mongodb:
+      uri: mongodb://mongo-primary:27017,mongo-replic1:27018,mongo-replic2:27019/crack-hash?authSource=admin&replicaSet=crack-hash

@@ -14,7 +14,8 @@ public class CrackInfo {
     private Set<String> answers;
     private int partCount;
 
-    public CrackInfo() {}
+    public CrackInfo() {
+    }
 
     public CrackInfo(@Nonnull String requestId, int partCount) {
         Objects.requireNonNull(requestId);
@@ -32,10 +33,8 @@ public class CrackInfo {
     public void addAnswers(int partNumber, @Nonnull List<String> answers) {
         Objects.requireNonNull(answers);
 
-        synchronized (this) {
-            this.receivedParts.add(partNumber);
-            this.answers.addAll(answers);
-        }
+        this.receivedParts.add(partNumber);
+        this.answers.addAll(answers);
     }
 
     boolean isReady() {
