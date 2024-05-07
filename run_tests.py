@@ -1,39 +1,36 @@
-import json
 import os
-import subprocess
 from time import sleep
-from typing import List
 
-from tqdm import tqdm
+from rich.progress import Progress
 
-
-class CrackStatus:
-    value: str
-    data: List[str]
-
-    def __init__(self, value: str, data: List[str]):
-        self.value = value
-        self.data = data
-
-    def __repr__(self):
-        return f'CrackStatus(value={self.value}, data={self.data})'
+from crack import CrackStatus, check_status, send_crack_request, get_md5
 
 
-def send_crack_request(hash_string: str, max_len: int) -> str:
-    request = "'{" + f'"hash":"{hash_string}","maxLength":"{max_len}"' + "}'"
-    command = f'curl -s -X POST http://localhost:8090/api/hash/crack -d {request} -H "Content-Type: application/json"'
+def wait_for_completion(request_id: str, wait_time: int = 60) -> CrackStatus:
+    with Progress() as progress:
+        wait_task = progress.add_task(description='Wait for response...', total=wait_time)
 
-    with subprocess.Popen(command, shell=True, stdout=subprocess.PIPE).stdout as f:
-        return json.load(f)['requestId']
+        for _ in range(wait_time):
+            sleep(1)
 
+            progress.update(wait_task, description='Wait for response...', advance=1)
 
-def check_status(request_id: str) -> CrackStatus:
-    command = f'curl -s -X GET http://localhost:8090/api/hash/status?requestId={request_id}'
+            try:
+                status = check_status(request_id)
+            except IOError:
+                continue
 
-    with subprocess.Popen(command, shell=True, stdout=subprocess.PIPE).stdout as f:
-        response = json.load(f)
+            if status.value == 'ERROR':
+                progress.remove_task(wait_task)
 
-    return CrackStatus(response['status'], response['data'] if 'data' in response else [])
+                raise ValueError('Failed to get response.')
+            elif status.value == 'READY':
+                progress.remove_task(wait_task)
+
+                return status
+
+        progress.remove_task(wait_task)
+        raise ValueError('Timeout error: could not get response.')
 
 
 def stop_container(name: str):
@@ -45,66 +42,92 @@ def start_container(name: str):
 
 
 def wait(wait_time: int):
-    for i in tqdm(range(wait_time), desc=f'Sleeping for {wait_time} secs'):
+    with Progress() as progress:
+        wait_task = progress.add_task(description='Waiting...', total=wait_time)
+
+        for _ in range(wait_time):
+            sleep(1)
+
+            progress.update(wait_task, advance=1, description='Waiting...')
+
+        progress.remove_task(wait_task)
+
+
+class TestCrackHash:
+    def test_simple(self):
+        value = 'a5BG'
+
+        request_id = send_crack_request(get_md5(value), max_len=4)
+
+        status = wait_for_completion(request_id, wait_time=10)
+
+        self.assert_in(value, status.data)
+
+    def test_shutdown_rabbit_first(self):
+        value = 'MITM'
+        stop_container('rabbitmq')
+
+        request_id = send_crack_request(get_md5(value), max_len=4)
+
+        wait(20)
+
+        start_container('rabbitmq')
+
+        status = wait_for_completion(request_id, wait_time=20)
+
+        self.assert_in(value, status.data)
+
+    def test_shutdown_manager_worker_rabbit_mongo(self):
+        value = 'MONGO'
+
+        print('Run complex test...')
+
+        request_id = send_crack_request(get_md5(value), max_len=5)
+
         sleep(1)
 
-def manager_rabbit_shutdown_scenario():
-    hash_string = '0cd0c4aab9323c79aebc7350edf58763'
-    max_len = 5
+        status = check_status(request_id)
 
-    request_id = send_crack_request(hash_string, max_len)
+        print(status)
 
-    sleep(1)
+        stop_container('manager')
 
-    status = check_status(request_id)
+        stop_container('worker3')
 
-    print(status)
+        stop_container('mongo-primary')
 
-    stop_container('manager')
+        wait(60)
 
-    stop_container('worker3')
+        stop_container('rabbitmq')
 
-    stop_container('mongodb-primary')
+        start_container('rabbitmq')
 
-    wait(60)
+        wait(5)
 
-    stop_container('rabbitmq')
+        start_container('manager')
 
-    wait(5)
+        status = wait_for_completion(request_id, wait_time=10)
 
-    start_container('rabbitmq')
+        start_container('worker3')
 
-    wait(5)
+        wait(5)
 
-    start_container('manager')
+        start_container('mongo-primary')
 
-    wait(10)
+        self.assert_in(value, status.data)
 
-    status = check_status(request_id)
+    def fail(self, msg=None):
+        raise ValueError(msg)
 
-    start_container('worker3')
+    def assert_equal(self, value1, value2, msg=None):
+        if value1 != value2:
+            raise self.fail(msg)
 
-    start_container('mongodb-primary')
+    def assert_in(self, value, values, msg=None):
+        if value not in values:
+            raise self.fail(msg)
 
-    print(status)
+    def assert_true(self, value, msg=None):
+        if not value:
+            raise self.fail(msg)
 
-
-def main():
-    manager_rabbit_shutdown_scenario()
-
-    # stop_container('manager')
-    #
-    # start_container('manager')
-
-    # request_id = send_crack_request()
-    #
-    # for i in range(6):
-    #     sleep(1)
-    #
-    #     status = check_status(request_id)
-    #
-    #     print(status)
-
-
-if __name__ == '__main__':
-    main()
