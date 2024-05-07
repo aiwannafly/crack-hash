@@ -1,6 +1,7 @@
 import os
 from time import sleep
 
+from colorama import Style, Fore
 from rich.progress import Progress
 
 from crack import CrackStatus, check_status, send_crack_request, get_md5
@@ -61,34 +62,54 @@ class TestCrackHash:
 
         status = wait_for_completion(request_id, wait_time=10)
 
-        self.assert_in(value, status.data)
+        self.check_response(value, status)
+
+        self.log_separator()
+
+    def test_many_values(self):
+        values = ['hi', 'Bob', 'how', 'are', 'you']
+
+        request_ids = [send_crack_request(get_md5(v), max_len=4) for v in values]
+
+        for value, request_id in zip(values, request_ids):
+
+            status = wait_for_completion(request_id, wait_time=10)
+
+            self.check_response(value, status)
+
+        self.log_separator()
 
     def test_shutdown_rabbit_first(self):
         value = 'MITM'
+
+        self.log('Stopping rabbitmq...')
+
         stop_container('rabbitmq')
 
         request_id = send_crack_request(get_md5(value), max_len=4)
 
-        wait(20)
+        self.log(f'Sent request to crack {value}')
+
+        self.log('Restarting rabbitmq...')
 
         start_container('rabbitmq')
 
         status = wait_for_completion(request_id, wait_time=20)
 
-        self.assert_in(value, status.data)
+        self.check_response(value, status)
+
+        self.log_separator()
 
     def test_shutdown_manager_worker_rabbit_mongo(self):
         value = 'MONGO'
 
-        print('Run complex test...')
-
         request_id = send_crack_request(get_md5(value), max_len=5)
+
+        self.log(f'Sent request to crack {value}')
 
         sleep(1)
 
-        status = check_status(request_id)
-
-        print(status)
+        self.log(f'Stopping services...')
 
         stop_container('manager')
 
@@ -99,6 +120,8 @@ class TestCrackHash:
         wait(60)
 
         stop_container('rabbitmq')
+
+        self.log(f'Restarting services...')
 
         start_container('rabbitmq')
 
@@ -114,7 +137,20 @@ class TestCrackHash:
 
         start_container('mongo-primary')
 
-        self.assert_in(value, status.data)
+        self.check_response(value, status)
+
+        self.log_separator()
+
+    def check_response(self, value: str, status: CrackStatus):
+        self.assert_in(value, status.data, f'Not found {value} in {status.data}')
+
+        self.log(f"{Fore.LIGHTGREEN_EX}SUCCESS{Style.RESET_ALL}: Found '{value}' in {status}.")
+
+    def log_separator(self):
+        print(f'{Style.BRIGHT}----------------------------------------------------------------------{Style.RESET_ALL}\n')
+
+    def log(self, message: str):
+        print(f'{Fore.MAGENTA}[ TESTS ]{Style.RESET_ALL}: {message}\n')
 
     def fail(self, msg=None):
         raise ValueError(msg)
@@ -130,4 +166,3 @@ class TestCrackHash:
     def assert_true(self, value, msg=None):
         if not value:
             raise self.fail(msg)
-
