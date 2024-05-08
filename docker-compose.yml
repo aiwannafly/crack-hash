@@ -8,6 +8,8 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
+      mongo-primary:
+        condition: service_healthy
 
   worker1:
     image: crack-hash-worker:latest

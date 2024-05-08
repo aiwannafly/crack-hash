@@ -41,7 +41,7 @@ def check_status(request_id: str) -> CrackStatus:
     return CrackStatus(response['status'], response['data'] if 'data' in response else [])
 
 
-def get_md5(value: str) -> str:
+def calc_md5(value: str) -> str:
     return hashlib.md5(value.encode()).hexdigest()
 
 
@@ -58,7 +58,7 @@ def main():
     else:
         max_len = len(string)
 
-    request_id = send_crack_request(get_md5(string), max_len)
+    request_id = send_crack_request(calc_md5(string), max_len)
 
     print(f'Request id: {request_id}')
 

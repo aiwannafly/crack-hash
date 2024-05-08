@@ -4,7 +4,7 @@ from time import sleep
 from colorama import Style, Fore
 from rich.progress import Progress
 
-from crack import CrackStatus, check_status, send_crack_request, get_md5
+from crack import CrackStatus, check_status, send_crack_request, calc_md5
 
 
 def wait_for_completion(request_id: str, wait_time: int = 60) -> CrackStatus:
@@ -58,7 +58,7 @@ class TestCrackHash:
     def test_simple(self):
         value = 'a5BG'
 
-        request_id = send_crack_request(get_md5(value), max_len=4)
+        request_id = send_crack_request(md5_hash=calc_md5(value), max_len=4)
 
         status = wait_for_completion(request_id, wait_time=10)
 
@@ -69,7 +69,7 @@ class TestCrackHash:
     def test_many_values(self):
         values = ['hi', 'Bob', 'how', 'are', 'you']
 
-        request_ids = [send_crack_request(get_md5(v), max_len=4) for v in values]
+        request_ids = [send_crack_request(md5_hash=calc_md5(v), max_len=4) for v in values]
 
         for value, request_id in zip(values, request_ids):
 
@@ -86,7 +86,7 @@ class TestCrackHash:
 
         stop_container('rabbitmq')
 
-        request_id = send_crack_request(get_md5(value), max_len=4)
+        request_id = send_crack_request(md5_hash=calc_md5(value), max_len=4)
 
         self.log(f'Sent request to crack {value}')
 
@@ -103,7 +103,7 @@ class TestCrackHash:
     def test_shutdown_manager_worker_rabbit_mongo(self):
         value = 'MONGO'
 
-        request_id = send_crack_request(get_md5(value), max_len=5)
+        request_id = send_crack_request(md5_hash=calc_md5(value), max_len=5)
 
         self.log(f'Sent request to crack {value}')
 
@@ -131,13 +131,13 @@ class TestCrackHash:
 
         status = wait_for_completion(request_id, wait_time=10)
 
+        self.check_response(value, status)
+
         start_container('worker3')
 
         wait(5)
 
         start_container('mongo-primary')
-
-        self.check_response(value, status)
 
         self.log_separator()
 
